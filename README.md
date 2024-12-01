@@ -1,4 +1,4 @@
-Bat-Egite
+# Bat-Egite
 
 ## Guía de instalación de Debian 12 usando debootstrap con Argon2id, Secure Boot, BTRFS y LUKS2.
 
@@ -279,7 +279,11 @@ Creamos el grupo wheel y el usuario
 root@debian:~# addgroup wheel
 ```
 ```bash
-root@debian:~# useradd -m -G wheel usuario
+root@debian:~# useradd -mG cdrom,floppy,sudo,audio,dip,video,plugdev,netdev -s /usr/bin/bash -c 'tusuario' tusuario
+```
+Contraseña para el tusuario
+```bash
+root@debian:/#  passwd tusuario
 ```
 Ponemos el nombre al hostname y modificamos el archivos hosts
 ```bash
@@ -337,7 +341,326 @@ Instalamos el kernel de backports
 ```bash 
 root@debian:~# apt install linux-image-amd64/${CODENAME}-backports linux-headers-amd64/${CODENAME}-backports -y
 ```
-Console fonts
+Instalamos los paquetes necesarios para compilar grub desde el código fuente
 ```bash 
-root@debian:~# dpkg-reconfigure console-setup
+root@debian:/# apt install --fix-missing shim-signed shim-helpers-amd64-signed sudo git curl libarchive-tools help2man python3 rsync texinfo ttf-bitstream-vera build-essential dosfstools efibootmgr uuid-runtime efivar mtools os-prober dmeventd libdevmapper-dev libdevmapper-event1.02.1 libdevmapper1.02.1 libfont-freetype-perl python3-freetype libghc-gi-freetype2-dev libghc-gi-freetype2-prof fuse2fs libconfuse2 gettext xorriso libisoburn-dev autogen gnulib libfreetype-dev pkg-config m4 libtool automake flex fuse3 libfuse3-dev gawk autoconf-archive rdfind fonts-dejavu lzma lzma-dev liblzma5 liblzma-dev liblz1 liblz-dev unifont acl libzfslinux-dev sbsigntool -y
+```
+creamos el directorio de claves y la clave para luks2
+```bash 
+root@debian:/# mkdir -vp /etc/keys
+```
+```bash 
+root@debian:/# ( umask 0077 && dd if=/dev/urandom bs=1 count=128 of=/etc/keys/root.key conv=excl,fsync )
+```
+Asegúrese de configurar el propietario y el grupo como root y cambiar los permisos para que solo el propietario pueda leer, escribir y ejecutar.
+```bash 
+root@debian:/# chown -vR root:root /etc/keys
+```
+```bash 
+root@debian:/# chmod -vR 600 /etc/keys
+```
+```bash 
+root@debian:/# chattr +i /etc/keys/root.key
+```
+Agregamos la clave a LUKS2
+```bash 
+root@debian:/# cryptsetup --cipher aes-xts-plain64:sha512 -s 512 -h sha512 -i 10000 --pbkdf=argon2id luksAddKey /dev/sdx2 /etc/keys/root.key
+```
+Agregamos ahora luks2 particion a /etc/crypttab
+```bash
+root@debian:/# echo "crypt UUID=$(blkid -s UUID -o value /dev/sda2) /etc/keys/root.key luks,discard,key-slot=1" >> /etc/crypttab
+```
+Agregaré esta línea para que initramfs pueda encontrar la clave.
+```bash 
+root@debian:/# echo "KEYFILE_PATTERN=\"/etc/keys/*.key\"" >>/etc/cryptsetup-initramfs/conf-hook
+```
+Configuraré UMASK en un valor restrictivo para evitar la filtración de material clave. Luego me aseguraré de que se establezcan permisos restrictivos y que la clave esté disponible en initramfs.
+```bash 
+root@debian:/# echo UMASK=0077 >>/etc/initramfs-tools/initramfs.conf
+```
+Actualizamos el initrd
+```bash 
+root@debian:/# update-initramfs -v -u
+```
+Comprobamos los permisos y si la clave se encuentra
+```bash 
+root@debian:/# stat -L -c "%A %n" /initrd.img
+```
+```bash 
+root@debian:/# lsinitramfs /initrd.img | grep "^cryptroot/keyfiles/"
+```
+Bloquemos grub y sus deribados ya que lo instalaremos desde el codigo fuente.
+```bash
+root@debian:/# apt-mark hold grub2 grub-pc grub-efi grub-efi-amd64
+```
+Debe incluir gcc en la variable PATH o la compilación fallará para grub. Los otros son para que grub pueda encontrar bibliotecas adicionales que se clonan para la compilación. CFLAGS es algo que obtuve de un script que necesito encontrar nuevamente.
+```bash 
+root@debian:/# export PATH="$PATH:/bin/gcc:/sbin/gcc"
+```
+```bash 
+root@debian:/# export GRUB_CONTRIB=./grub-extras
+```
+```bash 
+root@debian:/# export GNULIB_SRCDIR=./gnulib
+```
+```bash 
+root@debian:/# export CFLAGS=${CFLAGS/-fno-plt}
+```
+Una solución para que mawk dé errores durante el proceso de creación es cambiar el nombre de mawk en /usr/bin y luego señalar mawk a gawk:
+```bash
+root@debian:/# mv /usr/bin/mawk /usr/bin/mawk_bu
+```
+```bash
+root@debian:/# ln -s /usr/bin/gawk /usr/bin/mawk
+```
+Crearé una carpeta de fuentes para la compilación de grub:
+```bash
+root@debian:/# mkdir -vp /sources && cd sources
+```
+Clonación de repositorios de git necesarios para el parche argon2 de Archlinux. 
+```bash
+root@debian:/sources# git clone https://git.savannah.gnu.org/git/grub.git
+```
+entramos en la carpeta grub
+```bash
+root@debian:/sources# cd grub
+```
+Descargamos los git necesarios
+```bash
+root@debian:/sources/grub# git clone https://git.savannah.nongnu.org/git/grub-extras.git
+```
+```bash
+root@debian:/sources/grub#  git clone https://aur.archlinux.org/grub-improved-luks2-git.git
+```
+```bash
+root@debian:/sources/grub#  git clone https://git.savannah.gnu.org/git/gnulib.git
+```
+Esta parte está copiada de grub-improved-luks2-git/PKGBUILD. Parcha grub y lo compila e instala.
+```bash
+root@debian:/sources/grub#  patch -Np1 -i ./grub-improved-luks2-git/add-GRUB_COLOR_variables.patch
+patching file util/grub-mkconfig.in
+Hunk #1 succeeded at 250 (offset 4 lines).
+patching file util/grub.d/00_header.in
+```
+Parche grub-mkconfig para detectar imágenes initramfs de Arch Linux.
+```bash
+root@debian:/sources/grub#  patch -Np1 -i ./grub-improved-luks2-git/detect-archlinux-initramfs.patch
+patching file util/grub.d/10_linux.in
+Hunk #1 succeeded at 95 (offset 2 lines).
+Hunk #2 succeeded at 212 (offset 12 lines).
+Hunk #3 succeeded at 301 with fuzz 1 (offset 14 lines).
+```
+Argón2:
+```bash
+root@debian:/sources/grub#  patch -Np1 -i ./grub-improved-luks2-git/argon_1.patch
+patching file grub-core/kern/dl.c
+Hunk #1 succeeded at 470 (offset 3 lines).
+patching file util/grub-module-verifierXX.c
+Hunk #1 succeeded at 236 with fuzz 1 (offset 79 lines).
+```
+```bash
+root@debian:/sources/grub#  patch -Np1 -i ./grub-improved-luks2-git/argon_2.patch
+patching file include/grub/types.h
+Hunk #1 succeeded at 156 (offset 3 lines).
+Hunk #2 succeeded at 178 (offset 3 lines).
+```
+```bash
+root@debian:/sources/grub#  patch -Np1 -i ./grub-improved-luks2-git/argon_3.patch
+patching file docs/grub-dev.texi
+Hunk #1 succeeded at 503 (offset 13 lines).
+patching file grub-core/Makefile.core.def
+Hunk #1 succeeded at 1219 (offset 45 lines).
+patching file grub-core/lib/argon2/LICENSE
+patching file grub-core/lib/argon2/argon2.c
+patching file grub-core/lib/argon2/argon2.h
+patching file grub-core/lib/argon2/blake2/blake2-impl.h
+patching file grub-core/lib/argon2/blake2/blake2.h
+patching file grub-core/lib/argon2/blake2/blake2b.c
+patching file grub-core/lib/argon2/blake2/blamka-round-ref.h
+patching file grub-core/lib/argon2/core.c
+patching file grub-core/lib/argon2/core.h
+patching file grub-core/lib/argon2/ref.c
+```
+```bash
+root@debian:/sources/grub#  patch -Np1 -i ./grub-improved-luks2-git/argon_4.patch
+patching file grub-core/disk/luks2.c
+Hunk #1 succeeded at 38 (offset -2 lines).
+Hunk #2 succeeded at 91 (offset -2 lines).
+Hunk #3 succeeded at 161 (offset -2 lines).
+Hunk #4 succeeded at 461 (offset 14 lines).
+```
+```bash
+root@debian:/sources/grub#  patch -Np1 -i ./grub-improved-luks2-git/argon_5.patch
+patching file Makefile.util.def
+patching file grub-core/Makefile.core.def
+Hunk #1 succeeded at 1242 (offset 45 lines).
+patching file grub-core/disk/luks2.c
+Hunk #2 succeeded at 463 (offset 14 lines).
+```
+Haga que grub-install funcione con luks2:
+```bash
+root@debian:/sources/grub#  patch -Np1 -i ./grub-improved-luks2-git/grub-install_luks2.patch
+patching file util/grub-install.c
+Hunk #1 succeeded at 448 (offset 2 lines).
+```
+Corrija la ubicación de DejaVuSans.ttf para que grub-mkfont pueda crear archivos *.pf2 para el tema starfield:
+```bash
+root@debian:/sources/grub#  sed 's|/usr/share/fonts/dejavu|/usr/share/fonts/dejavu /usr/share/fonts/truetype/dejavu|g' -i "configure.ac"
+```
+Modifique el comportamiento de grub-mkconfig para silenciar las advertencias FS#36275
+```bash
+root@debian:/sources/grub#  sed 's| ro | rw |g' -i "util/grub.d/10_linux.in"
+```
+Modifique el comportamiento de grub-mkconfig para que las entradas generadas automáticamente lean 'Arch Linux' FS#33393
+```bash
+root@debian:/sources/grub#  sed 's|GNU/Linux|Linux|' -i "util/grub.d/10_linux.in"
+```
+Elimine el módulo lua de grub-extras ya que es incompatible con los cambios en grub_file_open. http://git.savannah.gnu.org/cgit/grub.git/commit/?id=ca0a4f689a02c2c5a5e385f874aaaa38e151564e
+```bash
+root@debian:/sources/grub#  rm -rf ./grub-extras/lua
+```
+Arrancaré grub2 y luego lo compilaré:
+```bash
+root@debian:/sources/grub#  ./bootstrap
+```
+```bash
+root@debian:/sources/grub# mkdir ./build_x86_64-efi
+```
+```bash
+root@debian:/sources/grub# cd ./build_x86_64-efi
+```
+Enpezamos la compilacion
+```bash 
+root@debian:/sources/grub/build_x86_64-efi#  ../configure --with-platform=efi --target=x86_64 --prefix="/usr" --sbindir="/usr/bin" --sysconfdir="/etc" --enable-boot-time --enable-cache-stats --enable-device-mapper --enable-grub-mkfont --enable-grub-mount --enable-mm-debug --disable-silent-rules --disable-werror  CPPFLAGS="$CPPFLAGS -O2" --enable-stack-protector --enable-liblzma
+```
+Deberías obtener algo como esto:
+```code
+*******************************************************
+GRUB2 will be compiled with following components:
+Platform: x86_64-efi
+With devmapper support: Yes
+With memory debugging: Yes
+With disk cache statistics: Yes
+With boot time statistics: Yes
+efiemu runtime: No (not available on efi)
+grub-mkfont: Yes
+grub-mount: Yes
+starfield theme: Yes
+With DejaVuSans font from /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
+With libzfs support: Yes
+Build-time grub-mkfont: Yes
+With unifont from /usr/share/fonts/X11/misc/unifont.pcf.gz
+With liblzma from -llzma (support for XZ-compressed mips images)
+With stack smashing protector: Yes
+*******************************************************
+```
+Si todo parece bien, instalamos grub2:
+```bash 
+root@debian:/sources/grub/build_x86_64-efi#  make DESTDIR=/ bashcompletiondir=/usr/share/bash-completion/completions install
+```        
+```bash 
+root@debian:/sources/grub/build_x86_64-efi#  install -D -m0644 ../grub-improved-luks2-git/grub.default /etc/default/grub
+```
+```bash 
+root@debian:/sources/grub/build_x86_64-efi#  cd ../../..
+```
+Cambie el título del menú por el tuyo.
+```bash 
+root@debian:/# sed -i 's|GRUB_DISTRIBUTOR="Arch"|GRUB_DISTRIBUTOR="Kaisen"|g' /etc/default/grub
+```
+Habilite cryptodisk para darle a grub la capacidad de desbloquear la partición cifrada en el momento del arranque para acceder a initramfs en el directorio /boot
+```bash 
+root@debian:/# sed -i 's|#GRUB_ENABLE_CRYPTODISK=y|GRUB_ENABLE_CRYPTODISK=y|g' /etc/default/grub
+```
+Crearé un nuevo archivo de configuración de grub:
+```bash
+root@debian:/# grub-mkconfig -o /boot/grub/grub.cfg
+```
+Crearé un sbat.csv:
+```bash 
+root@debian:/# cat > /usr/share/grub/sbat.csv << EOF
+sbat,1,SBAT Version,sbat,1,https://github.com/rhboot/shim/blob/main/SBAT.md
+grub,4,Free Software Foundation,grub,2.12,https://www.gnu.org/software/grub/
+grub.debian,5,Debian,grub2,2.12-2kaisen,https://tracker.debian.org/pkg/grub2
+grub.debian13,1,Debian,grub2,2.12-2kaisen,https://tracker.debian.org/pkg/grub2
+grub.peimage,2,Canonical,grub2,2.12-2kaisen,https://salsa.debian.org/grub-team/grub/-/blob/master/debian/patches/secure-boot/efi-use-peimage-shim.patch
+EOF
+```
+Es hora de instalar el grub efi:
+```bash 
+root@debian:/# grub-install --target=x86_64-efi --efi-directory=/boot/efi --boot-directory=/boot --modules="bli argon2 all_video boot btrfs cat chain configfile echo efifwsetup efinet ext2 fat font gettext gfxmenu gfxterm gfxterm_background gzio halt help hfsplus iso9660 jpeg keystatus loadenv loopback linux ls lsefi lsefimmap lsefisystab lssal memdisk minicmd normal ntfs part_apple part_msdos part_gpt password_pbkdf2 png probe reboot regexp search search_fs_uuid search_fs_file search_label serial sleep smbios squash4 test tpm true video xfs zfs zfscrypt zfsinfo cpuid play cryptodisk gcry_arcfour gcry_blowfish gcry_camellia gcry_cast5 gcry_crc gcry_des gcry_dsa gcry_idea gcry_md4 gcry_md5 gcry_rfc2268 gcry_rijndael gcry_rmd160 gcry_rsa gcry_seed gcry_serpent gcry_sha1 gcry_sha256 gcry_sha512 gcry_tiger gcry_twofish gcry_whirlpool luks luks2 lvm mdraid09 mdraid1x raid5rec raid6rec" --sbat /usr/share/grub/sbat.csv /dev/sdx
+```
+Pasaré por encima del administrador de shim y mok firmado, así como del grubx64.efi que acabamos de crear con grub-install. 
+```bash 
+root@debian:/# mkdir -vp /boot/efi/EFI/BOOT
+```
+```bash 
+root@debian:/# cp /boot/efi/EFI/debian/grubx64.efi /boot/efi/EFI/BOOT/
+```
+```bash 
+root@debian:/# cp /usr/lib/shim/shimx64.efi.signed /boot/efi/EFI/BOOT/bootx64.efi
+```
+```bash 
+root@debian:/# cp /usr/lib/shim/mmx64.efi.signed /boot/efi/EFI/BOOT/mmx64.efi
+``` 
+Crearé la clave del propietario de la máquina junto con el certificado necesario al registrarla en el administrador MOK en el primer arranque. También estableceré permisos restrictivos:
+```bash
+root@debian:/# mkdir -vp /etc/keys/MOK
+```
+```bash 
+root@debian:/# (umask 0077 && openssl req -newkey rsa:2048 -nodes -keyout /etc/keys/MOK/MOK.key -new -x509 -sha256 -days 3650 -subj "/CN=el nombre que quieras/" -out /etc/keys/MOK/MOK.crt)
+```
+```bash
+root@debian:/# (umask 0077 && openssl x509 -outform DER -in /etc/keys/MOK/MOK.crt -out /etc/keys/MOK/tunombre-MOK.cer)
+```
+```bash
+root@debian:/# mkdir -vp /efi/EFI/certs
+```
+```bash
+root@debian:/# cp /etc/keys/MOK/tunombre-MOK.cer /boot/efi/EFI/certs/
+```
+```bash 
+root@debian:/# chmod -vR 600 /etc/keys
+```
+```bash 
+root@debian:/# chattr +i /etc/keys/MOK/MOK.key
+```
+```bash 
+root@debian:/# chattr +i /etc/keys/MOK/tunombre-MOK.cer
+```
+```bash
+root@debian:/# chattr +i /etc/keys/MOK/MOK.crt
+```
+Ahora comprobaré las firmas y firmaré vmlinuz y grubx64.
+```bash 
+root@debian:/# sbverify --list /boot/$(ls /boot | grep vmlinuz)
+```
+Si tienes ya alguna firma para borrarla.
+```bash
+root@debian:/# sbattach --signum 1 --remove /boot/$(ls /boot | grep vmlinuz)
+```
+```bash 
+root@debian:/# sbsign --key /etc/keys/MOK/MOK.key --cert /etc/keys/MOK/MOK.crt --output /boot/$(ls /boot | grep vmlinuz) /boot/$(ls /boot | grep vmlinuz)
+```
+```bash 
+root@debian:/# sbverify --list /boot/$(ls /boot | grep vmlinuz)
+```
+```bash 
+root@debian:/# sbverify --list /boot/efi/EFI/BOOT/grubx64.efi
+```
+```bash 
+root@debian:/# sbattach --signum 1 --remove /boot/efi/EFI/BOOT/grubx64.efi  
+```
+```bash 
+root@debian:/# sbsign --key /etc/keys/MOK/MOK.key --cert /etc/keys/MOK/MOK.crt --output /boot/efi/EFI/BOOT/grubx64.efi /boot/efi/EFI/BOOT/grubx64.efi
+```
+```bash 
+root@debian:/# sbverify --list /boot/efi/EFI/BOOT/grubx64.efi
+``` 
+```bash 
+root@debian:/# efibootmgr -c -d /dev/sdb -p 1 -L  "tuNombre" -l '\EFI\BOOT\bootx64.efi'
+```
+Por si quieres borrar alguna entrada donde la x es el numero o letra del final.
+```bash 
+root@debian:/# sudo efibootmgr --delete-bootnum --bootnum  x
 ```
