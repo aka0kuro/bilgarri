@@ -6,19 +6,18 @@ Antes de nada necesitas saber o estar familiarizado con la terminal GNU/Linux y 
 Sino es así aquí tienes una curso para ir empezando de la fundación GNU/Linux (https://training.linuxfoundation.org/training/introduction-to-linux/)
 
 ## Lo que necesitas:
-<p>ISO en vivo de Debian Live (12.8.0 o posterior) - (https://www.debian.org/CD/live/)<br>
+ISO en vivo de Debian Live (12.8.0 o posterior) - (https://www.debian.org/CD/live/)<br>
 USB para gravar la ISO.<br>
 Disco duro o SSD para la instalación.<br>
-Dos ordenadores en la misma red.</p>
+Dos ordenadores en la misma red.
 
 ## Empezemos
-<p>Empezamos por crear un USB con la iso de Debian Live, si no sabemos como crear el USB podemos usar BalenaEtcher (https://etcher.balena.io/) que es bastante intuitivo y fácil de usar o usar DD aquí una guía explicativa de como usar DD (https://www.cyberciti.biz/faq/creating-a-bootable-ubuntu-usb-stick-on-a-debian-linux/) que es mas complicado.<br>
+Empezamos por crear un USB con la iso de Debian Live, si no sabemos como crear el USB podemos usar BalenaEtcher (https://etcher.balena.io/) que es bastante intuitivo y fácil de usar o usar DD aquí una guía explicativa de como usar DD (https://www.cyberciti.biz/faq/creating-a-bootable-ubuntu-usb-stick-on-a-debian-linux/) que es mas complicado.<br>
 Cuando este creado el USB con Debian Live lo arrancamos, en el ordenador <strong>server</strong> como lo llamaremos de ahora en adelante.<br>
 
 ## Arrancamos
 Arrancamos Debian Live en el ordenador <strong>server</strong>.<br>
 Cuando este cargado el escritorio del <strong>server</strong> abrimos una terminal e instalamos openssh-server.<br><br>
-
 
 ```bash
 user@debian:~$ sudo apt install openssh-server -y
@@ -27,7 +26,7 @@ Después de de la instalación arrancaremos el demonio de SSH<br><br>
 ```bash
 user@debian:~$ sudo systemctl start ssh
 ```
-Posterior mente introducimos IP a para ver que IP tenemos</p>
+Posterior mente introducimos IP a para ver que IP tenemos
 ```bash
 user@debian:~$ ip a
 ```
@@ -152,6 +151,106 @@ Verify passphrase:
 ```
 Abrimos la particion encriptada.
 ```bash
-root@debian:~# cryptsetup open /dev/sda2 crypt
-Enter passphrase for /dev/sda2: 
+root@debian:~# cryptsetup open /dev/sdx2 crypt
+Enter passphrase for /dev/sdx2:
+```
+## Creamos y formateamos las particiones
+Particionamos la particion EFI
+```bash
+root@debian:~# mkfs.vfat -nESP -F32 /dev/sdx1
+mkfs.fat 4.2 (2021-01-31)
+```
+Particionamos la particion BTRFS
+```bash
+root@debian:~# mkfs.btrfs -L root /dev/mapper/crypt
+btrfs-progs v6.2
+See http://btrfs.wiki.kernel.org for more information.
+
+NOTE: several default settings have changed in version 5.15, please make sure
+      this does not affect your deployments:
+      - DUP for metadata (-m dup)
+      - enabled no-holes (-O no-holes)
+      - enabled free-space-tree (-R free-space-tree)
+
+Label:              root
+UUID:               ca8743f2-c5f8-455c-b2e2-2031ecf183d9
+Node size:          16384
+Sector size:        4096
+Filesystem size:    446.92GiB
+Block group profiles:
+  Data:             single            8.00MiB
+  Metadata:         DUP               1.00GiB
+  System:           DUP               8.00MiB
+SSD detected:       yes
+Zoned device:       no
+Incompat features:  extref, skinny-metadata, no-holes
+Runtime features:   free-space-tree
+Checksum:           crc32c
+Number of devices:  1
+Devices:
+   ID        SIZE  PATH
+    1   446.92GiB  /dev/mapper/crypt
+```
+
+## Creamos los subvolumes btrfs
+
+primero creamos una variable de montaje
+```bash
+root@debian:~# mount_opt="rw,noatime,compress=zstd:1,ssd,discard=async,space_cache,space_cache=v2,commit=120"
+```
+Montamos las particiones
+```bash
+root@debian:~# mount -o $mount_opt /dev/mapper/crypt /mnt
+root@debian:~# mkdir -p /mnt/boot/efi
+root@debian:~# mount /dev/sdx1 /mnt/boot/efi/
+```
+Creamos los subvolumenes
+```bash
+root@debian:~# btrfs subvolume create /mnt/@
+root@debian:~# btrfs subvolume create /mnt/@home
+root@debian:~# btrfs subvolume create /mnt/@snapshots
+root@debian:~# btrfs subvolume create /mnt/@swap
+root@debian:~# btrfs subvolume create /mnt/@log
+root@debian:~# btrfs subvolume create /mnt/@apt
+root@debian:~# btrfs subvolume create /mnt/@crash
+root@debian:~# btrfs subvolume create /mnt/@spool
+```
+## Montamos los subvolumenes
+
+Creamos las carpetas para los subvolumenes 
+```bash
+root@debian:~# mkdir -p /mnt/{swap,.snapshots,home,var/log,var/cache/apt,var/crash,var/spool}
+```
+Montamos los subvolumenes
+```bash
+root@debian:~# mount -o subvol=@snapshots,$mount_opt /dev/mapper/crypt /mnt/.snapshots
+root@debian:~# mount -o subvol=@swap,$mount_opt /dev/mapper/crypt /mnt/swap
+root@debian:~# mount -o subvol=@log,$mount_opt /dev/mapper/crypt /mnt/var/log
+root@debian:~# mount -o subvol=@apt,$mount_opt /dev/mapper/crypt /mnt/var/cache/apt
+root@debian:~# mount -o subvol=@apt,$mount_opt /dev/mapper/crypt /mnt/var/crash
+root@debian:~# mount -o subvol=@apt,$mount_opt /dev/mapper/crypt /mnt/var/spool
+```
+Creamos el archivo de intercanbio<br>
+calculadora de tamaño de swap (https://pickwicksoft.github.io/swapcalc/)
+```bash
+root@debian:~# chattr +C -R /mnt/swap
+root@debian:~# btrfs filesystem mkswapfile --size 6G --uuid clear /mnt/swap/swapfile
+root@debian:~# swapon /mnt/swap/swapfile
+```
+## Instalacion de Debian
+
+Sistema base
+```bash
+root@debian:~# apt install debootstrap arch-install-scripts
+root@debian:~# debootstrap --arch amd64 stable /mnt # Pra Debian Stable
+#root@debian:~# debootstrap --arch amd64 testing /mnt # Para Debian Testing
+#root@debian:~# debootstrap --arch amd64 sid /mnt # Para Debian Sid
+```
+creamos el fstab
+```bash
+root@debian:~# genfstab -U /mnt >> /mnt/etc/fstab
+```
+acedemos al chroot
+```bash
+root@debian:~# arch-chroot /mnt /bin/bash
 ```
