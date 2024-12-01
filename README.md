@@ -324,7 +324,7 @@ root@debian:~# apt update && apt upgrade
 ```
 Instalamos las herramientas necesarias para initramfs y cryptsetup para poder crear /etc/crypttab para la partición raíz cifrada. 
 ```bash
-root@debian:~# apt install btrfs-progs dosfstools cryptsetup-initramfs grub-efi cryptsetup-suspend firmware-linux firmware-linux-nonfree sudo nano bash-completion command-not-found plocate console-setup fonts-terminus -y
+root@debian:~# apt install btrfs-progs dosfstools cryptsetup-initramfs cryptsetup-suspend firmware-linux firmware-linux-nonfree sudo nano bash-completion command-not-found plocate console-setup fonts-terminus -y
 ```
 Instalamos el kernel de backports
 ```bash 
