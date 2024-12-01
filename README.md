@@ -216,8 +216,8 @@ root@debian:~# mount -o subvol=@snapshots,$mount_opt /dev/mapper/crypt /mnt/.sna
 root@debian:~# mount -o subvol=@swap,$mount_opt /dev/mapper/crypt /mnt/swap
 root@debian:~# mount -o subvol=@log,$mount_opt /dev/mapper/crypt /mnt/var/log
 root@debian:~# mount -o subvol=@apt,$mount_opt /dev/mapper/crypt /mnt/var/cache/apt
-root@debian:~# mount -o subvol=@apt,$mount_opt /dev/mapper/crypt /mnt/var/crash
-root@debian:~# mount -o subvol=@apt,$mount_opt /dev/mapper/crypt /mnt/var/spool
+root@debian:~# mount -o subvol=@crash,$mount_opt /dev/mapper/crypt /mnt/var/crash
+root@debian:~# mount -o subvol=@spool,$mount_opt /dev/mapper/crypt /mnt/var/spool
 ```
 Creamos el archivo de intercanbio<br>
 calculadora de tamaño de swap (https://pickwicksoft.github.io/swapcalc/)
