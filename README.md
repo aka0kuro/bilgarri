@@ -1,4 +1,4 @@
-# Bat-Egite
+at-Egite
 
 ## Guía de instalación de Debian 12 usando debootstrap con Argon2id, Secure Boot, BTRFS y LUKS2.
 
@@ -217,7 +217,7 @@ root@debian:~# btrfs subvolume create /mnt/@spool
 ```
 ## Montamos los subvolumenes
 
-Creamos las carpetas para los subvolumenes 
+Creamos las carpetas para los subvolumenes
 ```bash
 root@debian:~# mkdir -p /mnt/{swap,.snapshots,home,var/log,var/cache/apt,var/crash,var/spool}
 ```
@@ -253,4 +253,91 @@ root@debian:~# genfstab -U /mnt >> /mnt/etc/fstab
 acedemos al chroot
 ```bash
 root@debian:~# arch-chroot /mnt /bin/bash
+```
+De primeras actualizamos los repositorios y los paquetes
+```bash
+root@debian:~# apt update && apt upgrade
+```
+Instalar locales y re-configurar tzdata
+```bash
+root@debian:/# apt install locales -y
+```
+Configurar tu idioma
+```bash
+root@debian:/# dpkg-reconfigure locales
+```
+Configurar zona horaria
+```bash
+root@debian:/# dpkg-reconfigure tzdata
+```
+Quitar el usuario root
+```bash
+root@debian:~# passwd -l root
+```
+Creamos el grupo wheel y el usuario
+```bash
+root@debian:~# addgroup wheel
+```
+```bash
+root@debian:~# useradd -m -G wheel usuario
+```
+Ponemos el nombre al hostname y modificamos el archivos hosts
+```bash
+root@debian:~# HOSTNAME="tuhostname"
+```
+```bash
+root@debian:~# echo "${HOSTNAME}" > /etc/hostname
+```
+```bash
+root@debian:~# TAB="$(printf '\t')"
+```
+```bash 
+root@debian:~# cat > /etc/hosts << EOF
+127.0.0.1${TAB}localhost ${HOSTNAME}
+::1${TAB}${TAB}localhost ip6-localhost ip6-loopback
+fe00::0${TAB}${TAB}ip6-localnet
+ff00::0${TAB}${TAB}ip6-mcastprefix
+ff02::1${TAB}${TAB}ip6-allnodes
+ff02::2${TAB}${TAB}ip6-allrouters
+EOF
+```
+Añadir sources list stable, non-free, backports
+```bash 
+root@debian:~# apt install lsb-release
+```
+```bash 
+root@debian:~# mv /etc/apt/sources.list /etc/apt/sources.list.old
+```
+```bash 
+root@debian:~# CODENAME=$(lsb_release --codename --short)
+```
+```bash
+root@debian:~# cat > /etc/apt/sources.list << EOF
+deb http://deb.debian.org/debian ${CODENAME} main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian ${CODENAME} main contrib non-free non-free-firmware
+
+deb http://deb.debian.org/debian-security/ ${CODENAME}-security main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian-security/ ${CODENAME}-security main contrib non-free non-free-firmware
+
+deb http://deb.debian.org/debian ${CODENAME}-updates main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian ${CODENAME}-updates main contrib non-free non-free-firmware
+
+deb http://deb.debian.org/debian ${CODENAME}-backports main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian ${CODENAME}-backports main contrib non-free non-free-firmware
+EOF
+```
+```bash
+root@debian:~# apt update && apt upgrade
+```
+Instalamos las herramientas necesarias para initramfs y cryptsetup para poder crear /etc/crypttab para la partición raíz cifrada. 
+```bash
+root@debian:~# apt install btrfs-progs dosfstools cryptsetup-initramfs grub-efi cryptsetup-suspend firmware-linux firmware-linux-nonfree sudo nano bash-completion command-not-found plocate console-setup fonts-terminus -y
+```
+Instalamos el kernel de backports
+```bash 
+root@debian:~# apt install linux-image-amd64/${CODENAME}-backports linux-headers-amd64/${CODENAME}-backports -y
+```
+Console fonts
+```bash 
+root@debian:~# dpkg-reconfigure console-setup
 ```
