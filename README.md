@@ -52,18 +52,7 @@ Segunda ronda de borrado con /dev/zero (Introduce datos a zero o vacíos).
 ```bash
 root@debian:~# dd if=/dev/zero of=/dev/sdx bs=4096 status=progress
 ```
-## Preparación del entorno de construcción
- Crearé una variable para el punto de montaje. Este es un paso importante ya que los comandos de esta guía llamarán a esta variable.
-```bash
-root@debian:~# echo 'MN="/mnt"' >> ~/.bashrc
-```
-```bash
-root@debian:~# source ~/.bashrc
-```
-```bash
-root@debian:~# echo $MN
-/mnt
-```
+
 ## Instalación de dependencias
 Colocamos los repositorios non-free y nonfree-firmware.
 ```bash
