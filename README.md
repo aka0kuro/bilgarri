@@ -1,4 +1,4 @@
-at-Egite
+Bat-Egite
 
 ## Guía de instalación de Debian 12 usando debootstrap con Argon2id, Secure Boot, BTRFS y LUKS2.
 
