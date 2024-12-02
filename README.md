@@ -558,7 +558,7 @@ root@debian:/# apt install shim-signed os-prober
 ```
 Cambie el título del menú por el tuyo.
 ```bash 
-root@debian:/# sed -i 's|GRUB_DISTRIBUTOR="Arch"|GRUB_DISTRIBUTOR="Kaisen"|g' /etc/default/grub
+root@debian:/# sed -i 's|GRUB_DISTRIBUTOR="Arch"|GRUB_DISTRIBUTOR="Debian"|g' /etc/default/grub
 ```
 Habilite cryptodisk para darle a grub la capacidad de desbloquear la partición cifrada en el momento del arranque para acceder a initramfs en el directorio /boot
 ```bash 
