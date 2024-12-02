@@ -610,7 +610,7 @@ root@debian:/# (umask 0077 && openssl req -newkey rsa:2048 -nodes -keyout /etc/k
 root@debian:/# (umask 0077 && openssl x509 -outform DER -in /etc/keys/MOK/MOK.crt -out /etc/keys/MOK/tunombre-MOK.cer)
 ```
 ```bash
-root@debian:/# mkdir -vp /efi/EFI/certs
+root@debian:/# mkdir -vp /boot/efi/EFI/certs
 ```
 ```bash
 root@debian:/# cp /etc/keys/MOK/tunombre-MOK.cer /boot/efi/EFI/certs/
