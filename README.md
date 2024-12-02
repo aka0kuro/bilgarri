@@ -360,7 +360,7 @@ root@debian:/# cryptsetup --cipher aes-xts-plain64:sha512 -s 512 -h sha512 -i 10
 ```
 Agregamos ahora luks2 particion a /etc/crypttab
 ```bash
-root@debian:/# echo "crypt UUID=$(blkid -s UUID -o value /dev/sda2) /etc/keys/root.key luks,discard,key-slot=1" >> /etc/crypttab
+root@debian:/# echo "crypt UUID=$(blkid -s UUID -o value /dev/sdx2) /etc/keys/root.key luks,discard,key-slot=1" >> /etc/crypttab
 ```
 Agregaré esta línea para que initramfs pueda encontrar la clave.
 ```bash 
