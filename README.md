@@ -658,5 +658,5 @@ root@debian:/# efibootmgr -c -d /dev/sdx -p 1 -L  "tuNombre" -l '\EFI\BOOT\bootx
 ```
 Por si quieres borrar alguna entrada donde la x es el numero o letra del final.
 ```bash 
-root@debian:/# sudo efibootmgr --delete-bootnum --bootnum  x
+root@debian:/# efibootmgr --delete-bootnum --bootnum  x
 ```
