@@ -564,6 +564,10 @@ Habilite cryptodisk para darle a grub la capacidad de desbloquear la partición 
 ```bash 
 root@debian:/# sed -i 's|#GRUB_ENABLE_CRYPTODISK=y|GRUB_ENABLE_CRYPTODISK=y|g' /etc/default/grub
 ```
+Creamos la carpeta grub (personalmente no me parecia)
+```bash
+root@debian:/# mkdir -p /boot/grub/
+```
 Crearé un nuevo archivo de configuración de grub:
 ```bash
 root@debian:/# grub-mkconfig -o /boot/grub/grub.cfg
