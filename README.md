@@ -230,7 +230,6 @@ root@debian:~# swapon /mnt/swap/swapfile
 
 Sistema base
 ```bash
-root@debian:~# apt install debootstrap arch-install-scripts
 root@debian:~# debootstrap --arch amd64 stable /mnt # Pra Debian Stable
 #root@debian:~# debootstrap --arch amd64 testing /mnt # Para Debian Testing
 #root@debian:~# debootstrap --arch amd64 sid /mnt # Para Debian Sid
