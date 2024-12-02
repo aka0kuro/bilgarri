@@ -330,6 +330,10 @@ Instalamos el kernel de backports
 ```bash 
 root@debian:~# apt install linux-image-amd64/${CODENAME}-backports linux-headers-amd64/${CODENAME}-backports -y
 ```
+Bloquemos grub y sus deribados ya que lo instalaremos desde el codigo fuente.
+```bash
+root@debian:/# apt-mark hold grub2 grub-pc grub-efi grub-efi-amd64
+```
 Instalamos los paquetes necesarios para compilar grub desde el código fuente
 ```bash 
 root@debian:/# apt install --fix-missing shim-signed shim-helpers-amd64-signed sudo git curl libarchive-tools help2man python3 rsync texinfo ttf-bitstream-vera build-essential dosfstools efibootmgr uuid-runtime efivar mtools os-prober dmeventd libdevmapper-dev libdevmapper-event1.02.1 libdevmapper1.02.1 libfont-freetype-perl python3-freetype libghc-gi-freetype2-dev libghc-gi-freetype2-prof fuse2fs libconfuse2 gettext xorriso libisoburn-dev autogen gnulib libfreetype-dev pkg-config m4 libtool automake flex fuse3 libfuse3-dev gawk autoconf-archive rdfind fonts-dejavu lzma lzma-dev liblzma5 liblzma-dev liblz1 liblz-dev unifont acl libzfslinux-dev sbsigntool -y
@@ -377,10 +381,6 @@ root@debian:/# stat -L -c "%A %n" /initrd.img
 ```
 ```bash 
 root@debian:/# lsinitramfs /initrd.img | grep "^cryptroot/keyfiles/"
-```
-Bloquemos grub y sus deribados ya que lo instalaremos desde el codigo fuente.
-```bash
-root@debian:/# apt-mark hold grub2 grub-pc grub-efi grub-efi-amd64
 ```
 Debe incluir gcc en la variable PATH o la compilación fallará para grub. Los otros son para que grub pueda encontrar bibliotecas adicionales que se clonan para la compilación. CFLAGS es algo que obtuve de un script que necesito encontrar nuevamente.
 ```bash 
