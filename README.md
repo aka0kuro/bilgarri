@@ -331,7 +331,7 @@ root@debian:~# apt install linux-image-amd64/${CODENAME}-backports linux-headers
 ```
 Bloquemos grub y sus deribados ya que lo instalaremos desde el codigo fuente.
 ```bash
-root@debian:/# apt-mark hold grub2 grub-pc grub-efi grub-efi-amd64 grub-common
+root@debian:/# apt-mark hold grub-efi-amd64 grub-efi-amd64-signed grub-efi-amd64-bin grub-common grub2-common
 ```
 Instalamos los paquetes necesarios para compilar grub desde el código fuente
 ```bash 
