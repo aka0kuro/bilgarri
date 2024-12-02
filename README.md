@@ -654,7 +654,7 @@ root@debian:/# sbsign --key /etc/keys/MOK/MOK.key --cert /etc/keys/MOK/MOK.crt -
 root@debian:/# sbverify --list /boot/efi/EFI/BOOT/grubx64.efi
 ``` 
 ```bash 
-root@debian:/# efibootmgr -c -d /dev/sdb -p 1 -L  "tuNombre" -l '\EFI\BOOT\bootx64.efi'
+root@debian:/# efibootmgr -c -d /dev/sdx -p 1 -L  "tuNombre" -l '\EFI\BOOT\bootx64.efi'
 ```
 Por si quieres borrar alguna entrada donde la x es el numero o letra del final.
 ```bash 
