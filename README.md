@@ -335,7 +335,7 @@ root@debian:/# apt-mark hold grub-efi-amd64 grub-efi-amd64-signed grub-efi-amd64
 ```
 Instalamos los paquetes necesarios para compilar grub desde el código fuente
 ```bash 
-root@debian:/# apt install --fix-missing shim-signed shim-helpers-amd64-signed sudo git curl libarchive-tools help2man python3 rsync texinfo ttf-bitstream-vera build-essential dosfstools efibootmgr uuid-runtime efivar mtools os-prober dmeventd libdevmapper-dev libdevmapper-event1.02.1 libdevmapper1.02.1 libfont-freetype-perl python3-freetype libghc-gi-freetype2-dev libghc-gi-freetype2-prof fuse2fs libconfuse2 gettext xorriso libisoburn-dev autogen gnulib libfreetype-dev pkg-config m4 libtool automake flex fuse3 libfuse3-dev gawk autoconf-archive rdfind fonts-dejavu lzma lzma-dev liblzma5 liblzma-dev liblz1 liblz-dev unifont acl libzfslinux-dev sbsigntool -y
+root@debian:/# apt install --fix-missing shim-helpers-amd64-signed sudo git curl libarchive-tools help2man python3 rsync texinfo ttf-bitstream-vera build-essential dosfstools efibootmgr uuid-runtime efivar mtools dmeventd libdevmapper-dev libdevmapper-event1.02.1 libdevmapper1.02.1 libfont-freetype-perl python3-freetype libghc-gi-freetype2-dev libghc-gi-freetype2-prof fuse2fs libconfuse2 gettext xorriso libisoburn-dev autogen gnulib libfreetype-dev pkg-config m4 libtool automake flex fuse3 libfuse3-dev gawk autoconf-archive rdfind fonts-dejavu lzma lzma-dev liblzma5 liblzma-dev liblz1 liblz-dev unifont acl libzfslinux-dev sbsigntool -y
 ```
 creamos el directorio de claves y la clave para luks2
 ```bash 
@@ -551,6 +551,10 @@ root@debian:/sources/grub/build_x86_64-efi#  install -D -m0644 ../grub-improved-
 ```
 ```bash 
 root@debian:/sources/grub/build_x86_64-efi#  cd ../../..
+```
+Instalamos los paquetes que quedan.
+```bash
+root@debian:/# apt install shim-signed os-prober
 ```
 Cambie el título del menú por el tuyo.
 ```bash 
